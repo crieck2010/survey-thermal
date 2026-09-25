@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "survey-thermal"
+version = "0.1.0"
+description = "Land-surface-temperature analytics engine for surveying and remote sensing: per-pass LST maps, urban heat-island intensity, per-zone temperature time series, and heat-anomaly trends"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "crieck2010" }]
+keywords = ["surveying", "remote-sensing", "land-surface-temperature", "lst", "urban-heat-island", "thermal", "landsat"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+# The engine core is stdlib+numpy on purpose. Thermal conversions are
+# implemented here; real satellite acquisition needs survey-imagery;
+# GeoTIFF output needs rasterio.
+dependencies = ["numpy>=1.22"]
+
+[project.optional-dependencies]
+acquire = ["survey-imagery"]
+raster = ["rasterio>=1.3"]
+full = ["survey-imagery", "rasterio>=1.3"]
+dev = ["build", "twine", "pytest"]
+
+[project.scripts]
+survey-thermal = "thermal.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/crieck2010/survey-thermal"
+Repository = "https://github.com/crieck2010/survey-thermal"
+Issues = "https://github.com/crieck2010/survey-thermal/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
