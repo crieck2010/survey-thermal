@@ -12,7 +12,7 @@ per-pass LST maps from satellite thermal imagery, urban heat-island (UHI)
 intensity per zone, per-zone temperature time series, day-of-year heat
 anomalies, and heatwave event flagging.
 
-Two LST paths: **Landsat Collection 2 Level-2 `ST_B10`** (DN × 0.01 → Kelvin
+Two LST paths: **Landsat Collection 2 Level-2 `ST_B10`** (DN × 0.00341802 + 149 → Kelvin
 → °C) as the primary, and a **brightness-temperature fallback** (TOA
 radiance → Planck inversion → emissivity correction) for Landsat 8/9 TIRS
 band 10 when only Level-1 data exists.
@@ -131,6 +131,10 @@ pass-aligned difference, day-of-year z-scores, and heatwave streak logic.
   sensors or overpass times in one series.
 - **LST ≠ air temperature:** surface skin temperature runs hotter than
   2 m air temp on sunny days.
+- **Scaling:** defaults assume Landsat Collection 2 ST scaling
+  (DN × 0.00341802 + 149 K, verified against live STAC metadata). When
+  feeding a real STAC item, prefer its per-asset `raster:bands`
+  scale/offset via `st_scale_offset_from_stac()`.
 - **Screening tool**, not a microclimate study or a heat-health warning
   system.
 

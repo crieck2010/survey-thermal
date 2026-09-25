@@ -15,7 +15,7 @@ USGS already did the hard work for C2L2 products. The `ST_B10` band is
 surface temperature stored as an integer:
 
 ```
-kelvin   = DN × 0.01
+kelvin   = DN × 0.00341802 + 149
 celsius  = kelvin − 273.15
 ```
 

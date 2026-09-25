@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "survey-thermal"
-version = "0.1.0"
+version = "0.1.1"
 description = "Land-surface-temperature analytics engine for surveying and remote sensing: per-pass LST maps, urban heat-island intensity, per-zone temperature time series, and heat-anomaly trends"
 readme = "README.md"
 requires-python = ">=3.9"

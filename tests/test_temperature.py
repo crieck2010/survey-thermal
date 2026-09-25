@@ -8,6 +8,8 @@ from thermal.temperature import (
     BAND10_CONSTANTS,
     C2_UM_K,
     LAMBDA_B10_UM,
+    ST_OFFSET,
+    ST_SCALE,
     brightness_temp_to_lst_c,
     celsius_stats,
     dn_to_radiance,
@@ -16,16 +18,59 @@ from thermal.temperature import (
     radiance_to_brightness_temp,
     st_dn_to_celsius,
     st_dn_to_kelvin,
+    st_scale_offset_from_stac,
 )
 
 
 def test_st_dn_to_kelvin_scalar():
-    # Landsat C2L2: DN 30000 -> 300.00 K
-    assert st_dn_to_kelvin(30000) == pytest.approx(300.0)
+    # Landsat C2L2: K = DN * 0.00341802 + 149
+    assert st_dn_to_kelvin(50000) == pytest.approx(50000 * 0.00341802 + 149)
+    assert st_dn_to_kelvin(50000) == pytest.approx(319.901)
+
+
+def test_st_dn_to_kelvin_nodata_is_149k():
+    # DN 0 (nodata) maps to exactly the +149 K offset.
+    assert st_dn_to_kelvin(0) == pytest.approx(149.0)
+
+
+def test_st_dn_to_kelvin_override_matches_defaults():
+    # Explicit per-asset metadata overrides reproduce the C2 defaults.
+    assert st_dn_to_kelvin(50000, scale=0.00341802, offset=149.0) == pytest.approx(
+        st_dn_to_kelvin(50000)
+    )
+    # And a hypothetical legacy 0.01 product is honoured when given.
+    assert st_dn_to_kelvin(30000, scale=0.01, offset=0.0) == pytest.approx(300.0)
+
+
+def test_st_scale_offset_from_stac_reads_metadata():
+    asset = {
+        "href": "https://example/ST_B10.TIF",
+        "raster:bands": [{"scale": 0.00341802, "offset": 149.0, "nodata": 0}],
+    }
+    scale, offset = st_scale_offset_from_stac(asset)
+    assert scale == pytest.approx(0.00341802)
+    assert offset == pytest.approx(149.0)
+    # End-to-end with the extracted metadata:
+    assert st_dn_to_kelvin(50000, scale, offset) == pytest.approx(319.901)
+
+
+def test_st_scale_offset_from_stac_falls_back_to_c2_constants():
+    scale, offset = st_scale_offset_from_stac({"href": "https://example/ST_B10.TIF"})
+    assert scale == pytest.approx(ST_SCALE)
+    assert offset == pytest.approx(ST_OFFSET)
+
+
+def test_st_dn_to_kelvin_array_nan_safe():
+    import numpy as np
+
+    out = st_dn_to_kelvin(np.array([0, 50000, np.nan]))
+    assert out[0] == pytest.approx(149.0)
+    assert out[1] == pytest.approx(319.901)
+    assert np.isnan(out[2])
 
 
 def test_st_dn_to_celsius_scalar():
-    assert st_dn_to_celsius(30000) == pytest.approx(300.0 - 273.15)
+    assert st_dn_to_celsius(50000) == pytest.approx(319.901 - 273.15)
 
 
 def test_kelvin_to_celsius_zero():
@@ -101,7 +146,8 @@ def test_array_path_nan_safe():
     import numpy as np
 
     out = st_dn_to_celsius(np.array([30000.0, float("nan")]))
-    assert out[0] == pytest.approx(26.85)
+    # 30000 * 0.00341802 + 149 - 273.15 = -21.60939 °C
+    assert out[0] == pytest.approx(-21.60939)
     assert math.isnan(out[1])
 
 

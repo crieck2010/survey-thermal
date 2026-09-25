@@ -6,7 +6,7 @@ How land-surface-temperature rasters are produced and what they mean.
 
 | Path | Input | Output | Notes |
 |---|---|---|---|
-| Primary | Landsat Collection 2 Level-2 `ST_B10` | °C | USGS-retrieved surface temperature; `K = DN × 0.01` |
+| Primary | Landsat Collection 2 Level-2 `ST_B10` | °C | USGS-retrieved surface temperature; `K = DN × 0.00341802 + 149` |
 | Fallback | Landsat L1 TIRS band 10 DN | °C | Planck inversion + emissivity correction (see `docs/MATHS.md`) |
 
 The primary path is preferred whenever C2L2 scenes are available: USGS's

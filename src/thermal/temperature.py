@@ -3,12 +3,20 @@
 Two acquisition paths, one output (degrees Celsius):
 
 1. **Landsat Collection 2 Level-2** ``ST_B10`` — surface temperature already
-   retrieved by USGS: ``kelvin = dn * 0.01``. This is the primary path.
+   retrieved by USGS: ``kelvin = dn * 0.00341802 + 149``. This is the
+   primary path. (The older ``dn * 0.01`` scaling was a data bug — real C2
+   ST products use scale 0.00341802, offset +149 K, verified against live
+   STAC ``raster:bands`` metadata.)
 2. **Brightness-temperature fallback** — from top-of-atmosphere thermal
    radiance (TIRS band 10): radiance → Planck inversion → brightness
    temperature → emissivity correction → LST. The fallback's assumptions
    (single thermal band, constant emissivity) are stated plainly in the
    docstrings and the README limitations.
+
+Scaling note: ``st_dn_to_kelvin`` accepts per-asset ``scale``/``offset``
+overrides and :func:`st_scale_offset_from_stac` reads them from a STAC
+asset's ``raster:bands`` entry. Callers feeding real STAC items should
+always prefer the asset metadata over these defaults.
 """
 
 from __future__ import annotations
@@ -16,9 +24,15 @@ from __future__ import annotations
 import math
 from typing import Tuple
 
-#: Landsat Collection 2 Level-2 surface-temperature scale (ST_B10).
-#: Stored as uint16; multiply by this to get Kelvin.
-ST_SCALE = 0.01
+#: Landsat Collection 2 Level-2 surface-temperature scale (ST_B10),
+#: verified against live STAC ``raster:bands`` metadata (Element84 Earth
+#: Search ``landsat-c2-l2``, Microsoft Planetary Computer). Stored as
+#: uint16; Kelvin = DN * ST_SCALE + ST_OFFSET.
+ST_SCALE = 0.00341802
+
+#: Landsat Collection 2 Level-2 surface-temperature offset, Kelvin.
+#: nodata DN 0 therefore maps to exactly 149.0 K.
+ST_OFFSET = 149.0
 
 #: Kelvin → Celsius offset.
 K_TO_C = 273.15
@@ -49,18 +63,52 @@ BAND10_CONSTANTS = {
 }
 
 
-def st_dn_to_kelvin(dn) :
+def st_dn_to_kelvin(dn, scale=None, offset=None):
     """Convert Landsat C2L2 ST_B10 digital numbers to Kelvin.
+
+    ``kelvin = dn * scale + offset``. Defaults are the verified Landsat
+    Collection 2 constants (:data:`ST_SCALE`, :data:`ST_OFFSET`); pass
+    per-asset values read from a STAC item's ``raster:bands`` entry (see
+    :func:`st_scale_offset_from_stac`) to override them.
 
     Works on scalars and numpy arrays (NaN-safe: NaN in → NaN out).
     """
+    scale = ST_SCALE if scale is None else scale
+    offset = ST_OFFSET if offset is None else offset
     try:
         import numpy as np
 
         arr = np.asarray(dn, dtype=float)
-        return arr * ST_SCALE
+        return arr * scale + offset
     except ImportError:
-        return dn * ST_SCALE
+        return dn * scale + offset
+
+
+def st_scale_offset_from_stac(asset_dict):
+    """Extract (scale, offset) for a thermal asset from a STAC asset dict.
+
+    Reads the first entry of the asset's ``raster:bands`` list when the
+    asset dict comes straight from a STAC item's ``assets`` map. Falls back
+    to the Landsat Collection 2 constants when the metadata is absent —
+    the safe default for ``ST_B10`` assets.
+
+    ``asset_dict`` may be a full STAC asset (``{"href": ..., "raster:bands":
+    [...]}``) or just the ``raster:bands`` list itself.
+    """
+    bands = asset_dict
+    if isinstance(asset_dict, dict):
+        bands = asset_dict.get("raster:bands") or []
+    scale = offset = None
+    for entry in bands or []:
+        if isinstance(entry, dict):
+            scale = entry.get("scale")
+            offset = entry.get("offset")
+            break
+    if scale is None:
+        scale = ST_SCALE
+    if offset is None:
+        offset = ST_OFFSET
+    return float(scale), float(offset)
 
 
 def kelvin_to_celsius(kelvin):

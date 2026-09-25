@@ -1,7 +1,7 @@
 """Real satellite acquisition via survey-imagery (needs network).
 
 Thermal path: Landsat Collection 2 Level-2 ``ST_B10`` (surface temperature,
-Kelvin = DN × 0.01) through survey-imagery's STAC search, then
+Kelvin = DN × 0.00341802 + 149) through survey-imagery's STAC search, then
 :func:`thermal.temperature.st_dn_to_celsius`. Falls back to top-of-atmosphere
 brightness temperature (TIRS band 10) with the Planck inversion + emissivity
 correction when only L1 data is available — see :mod:`thermal.temperature`.
